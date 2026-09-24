@@ -14,6 +14,21 @@ import type {
   Validator,
 } from "./types";
 
+// Public contract types: inputs, options, schemas, and error shapes.
+// Inference machinery (Validator, ParseResult, Presence, InferSchema) stays
+// internal on purpose — naming those types erases the literal inference.
+export type {
+  BooleanOptions,
+  EnumOptions,
+  EnvErrorCode,
+  EnvIssue,
+  EnvSource,
+  NumberOptions,
+  Schema,
+  StringOptions,
+  UrlOptions,
+};
+
 function checkLength(
   value: string,
   minLength: number | undefined,
