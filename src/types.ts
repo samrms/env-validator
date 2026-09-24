@@ -38,6 +38,14 @@ export type StringOptions = {
   optional?: true;
 };
 
+/** Options accepted by number(). */
+export type NumberOptions = {
+  min?: number;
+  max?: number;
+  default?: number;
+  optional?: true;
+};
+
 /** A schema maps environment variable names to validators. */
 export type Schema = Record<string, Validator<unknown>>;
 
