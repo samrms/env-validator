@@ -39,7 +39,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "vitest run --passWithNoTests",
+    "test": "vitest run",
     "prepack": "pnpm build"
   },
   "packageManager": "pnpm@12.6.0",
