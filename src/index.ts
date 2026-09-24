@@ -1,4 +1,5 @@
 import type {
+  BooleanOptions,
   EnvErrorCode,
   NumberOptions,
   ParseResult,
@@ -112,4 +113,31 @@ export function number<O extends NumberOptions>(
   // Presence<O, number> is either `number` or `number | undefined`,
   // and Validator<number> satisfies both.
   return validator as Validator<Presence<O, number>>;
+}
+
+// Exactly "true" and "false" are accepted — no Boolean() truthiness, no case
+// folding, no 1/0/yes.
+export function boolean<O extends BooleanOptions>(
+  options?: O,
+): Validator<Presence<O, boolean>> {
+  const defaultValue = options?.default;
+  const optional = options?.optional;
+
+  const validator: Validator<boolean> = {
+    optional: optional === true,
+    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
+    parse(raw): ParseResult<boolean> {
+      if (raw === "true") {
+        return { ok: true, value: true };
+      }
+      if (raw === "false") {
+        return { ok: true, value: false };
+      }
+      return { ok: false, code: "INVALID", message: "invalid boolean" };
+    },
+  };
+
+  // Presence<O, boolean> is either `boolean` or `boolean | undefined`,
+  // and Validator<boolean> satisfies both.
+  return validator as Validator<Presence<O, boolean>>;
 }

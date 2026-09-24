@@ -46,6 +46,12 @@ export type NumberOptions = {
   optional?: true;
 };
 
+/** Options accepted by boolean(). */
+export type BooleanOptions = {
+  default?: boolean;
+  optional?: true;
+};
+
 /** A schema maps environment variable names to validators. */
 export type Schema = Record<string, Validator<unknown>>;
 
