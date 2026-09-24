@@ -52,6 +52,12 @@ export type BooleanOptions = {
   optional?: true;
 };
 
+/** Options accepted by enumOf(). */
+export type EnumOptions<V extends string> = {
+  default?: V;
+  optional?: true;
+};
+
 /** A schema maps environment variable names to validators. */
 export type Schema = Record<string, Validator<unknown>>;
 

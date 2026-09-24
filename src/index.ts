@@ -1,5 +1,6 @@
 import type {
   BooleanOptions,
+  EnumOptions,
   EnvErrorCode,
   NumberOptions,
   ParseResult,
@@ -140,4 +141,38 @@ export function boolean<O extends BooleanOptions>(
   // Presence<O, boolean> is either `boolean` or `boolean | undefined`,
   // and Validator<boolean> satisfies both.
   return validator as Validator<Presence<O, boolean>>;
+}
+
+export function enumOf<
+  const V extends readonly string[],
+  const O extends EnumOptions<V[number]>,
+>(values: V, options?: O): Validator<Presence<O, V[number]>> {
+  const defaultValue = options?.default;
+  const optional = options?.optional;
+
+  // Schema bugs fail fast, before any environment is read.
+  if (values.length === 0) {
+    throw new Error("env-validator: enumOf() requires at least one value");
+  }
+  if (defaultValue !== undefined && !values.includes(defaultValue)) {
+    throw new Error(
+      "env-validator: enumOf() default must be one of the allowed values",
+    );
+  }
+
+  const validator: Validator<V[number]> = {
+    optional: optional === true,
+    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
+    parse(raw): ParseResult<V[number]> {
+      if (values.includes(raw)) {
+        // Membership proved by includes(); V is generic, so TS cannot.
+        return { ok: true, value: raw as V[number] };
+      }
+      return { ok: false, code: "INVALID", message: "invalid value" };
+    },
+  };
+
+  // Presence<O, V[number]> is either the literal union or
+  // union | undefined, and Validator<union> satisfies both.
+  return validator as Validator<Presence<O, V[number]>>;
 }
