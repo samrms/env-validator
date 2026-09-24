@@ -28,38 +28,50 @@ function checkLength(
   return null;
 }
 
-export function string<O extends StringOptions>(
-  options?: O,
-): Validator<Presence<O, string>> {
-  const minLength = options?.minLength;
-  const maxLength = options?.maxLength;
-  const defaultValue = options?.default;
-  const optional = options?.optional;
+export class StringValidator<
+  T extends string | undefined,
+> implements Validator<T> {
+  readonly optional: boolean;
+  readonly default?: T;
+  private readonly minLength: number | undefined;
+  private readonly maxLength: number | undefined;
 
-  // A default that violates its own constraints is a schema bug: fail fast,
-  // before any environment is read.
-  if (defaultValue !== undefined) {
-    const message = checkLength(defaultValue, minLength, maxLength);
-    if (message !== null) {
-      throw new Error(`env-validator: string() default ${message}`);
+  constructor(options?: StringOptions) {
+    const minLength = options?.minLength;
+    const maxLength = options?.maxLength;
+    const defaultValue = options?.default;
+
+    // A default that violates its own constraints is a schema bug: fail fast,
+    // before any environment is read.
+    if (defaultValue !== undefined) {
+      const message = checkLength(defaultValue, minLength, maxLength);
+      if (message !== null) {
+        throw new Error(`env-validator: string() default ${message}`);
+      }
+    }
+
+    this.minLength = minLength;
+    this.maxLength = maxLength;
+    this.optional = options?.optional === true;
+    if (defaultValue !== undefined) {
+      // T matches the presence implied by options; factories infer it exactly.
+      this.default = defaultValue as T;
     }
   }
 
-  const validator: Validator<string> = {
-    optional: optional === true,
-    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-    parse(raw): ParseResult<string> {
-      const message = checkLength(raw, minLength, maxLength);
-      if (message !== null) {
-        return { ok: false, code: "OUT_OF_RANGE", message };
-      }
-      return { ok: true, value: raw };
-    },
-  };
+  parse(raw: string): ParseResult<T> {
+    const message = checkLength(raw, this.minLength, this.maxLength);
+    if (message !== null) {
+      return { ok: false, code: "OUT_OF_RANGE", message };
+    }
+    return { ok: true, value: raw as T };
+  }
+}
 
-  // Presence<O, string> is either `string` or `string | undefined`,
-  // and Validator<string> satisfies both.
-  return validator as Validator<Presence<O, string>>;
+export function string<O extends StringOptions>(
+  options?: O,
+): Validator<Presence<O, string>> {
+  return new StringValidator<Presence<O, string>>(options);
 }
 
 // Numeric grammar: optional sign, one or more digits, optional decimal part.
@@ -83,103 +95,133 @@ function checkNumber(
   return null;
 }
 
-export function number<O extends NumberOptions>(
-  options?: O,
-): Validator<Presence<O, number>> {
-  const min = options?.min;
-  const max = options?.max;
-  const defaultValue = options?.default;
-  const optional = options?.optional;
+export class NumberValidator<
+  T extends number | undefined,
+> implements Validator<T> {
+  readonly optional: boolean;
+  readonly default?: T;
+  private readonly min: number | undefined;
+  private readonly max: number | undefined;
 
-  // A default that violates its own constraints is a schema bug: fail fast,
-  // before any environment is read.
-  if (defaultValue !== undefined) {
-    const failure = checkNumber(defaultValue, min, max);
-    if (failure !== null) {
-      throw new Error(`env-validator: number() default ${failure.message}`);
+  constructor(options?: NumberOptions) {
+    const min = options?.min;
+    const max = options?.max;
+    const defaultValue = options?.default;
+
+    // A default that violates its own constraints is a schema bug: fail fast,
+    // before any environment is read.
+    if (defaultValue !== undefined) {
+      const failure = checkNumber(defaultValue, min, max);
+      if (failure !== null) {
+        throw new Error(`env-validator: number() default ${failure.message}`);
+      }
+    }
+
+    this.min = min;
+    this.max = max;
+    this.optional = options?.optional === true;
+    if (defaultValue !== undefined) {
+      // T matches the presence implied by options; factories infer it exactly.
+      this.default = defaultValue as T;
     }
   }
 
-  const validator: Validator<number> = {
-    optional: optional === true,
-    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-    parse(raw): ParseResult<number> {
-      if (!NUMBER_PATTERN.test(raw)) {
-        return { ok: false, code: "INVALID", message: "invalid number" };
-      }
-      const value = Number(raw);
-      const failure = checkNumber(value, min, max);
-      if (failure !== null) {
-        return { ok: false, ...failure };
-      }
-      return { ok: true, value };
-    },
-  };
+  parse(raw: string): ParseResult<T> {
+    if (!NUMBER_PATTERN.test(raw)) {
+      return { ok: false, code: "INVALID", message: "invalid number" };
+    }
+    const value = Number(raw);
+    const failure = checkNumber(value, this.min, this.max);
+    if (failure !== null) {
+      return { ok: false, ...failure };
+    }
+    return { ok: true, value: value as T };
+  }
+}
 
-  // Presence<O, number> is either `number` or `number | undefined`,
-  // and Validator<number> satisfies both.
-  return validator as Validator<Presence<O, number>>;
+export function number<O extends NumberOptions>(
+  options?: O,
+): Validator<Presence<O, number>> {
+  return new NumberValidator<Presence<O, number>>(options);
 }
 
 // Exactly "true" and "false" are accepted — no Boolean() truthiness, no case
 // folding, no 1/0/yes.
+export class BooleanValidator<
+  T extends boolean | undefined,
+> implements Validator<T> {
+  readonly optional: boolean;
+  readonly default?: T;
+
+  constructor(options?: BooleanOptions) {
+    const defaultValue = options?.default;
+
+    this.optional = options?.optional === true;
+    if (defaultValue !== undefined) {
+      // T matches the presence implied by options; factories infer it exactly.
+      this.default = defaultValue as T;
+    }
+  }
+
+  parse(raw: string): ParseResult<T> {
+    if (raw === "true") {
+      return { ok: true, value: true as T };
+    }
+    if (raw === "false") {
+      return { ok: true, value: false as T };
+    }
+    return { ok: false, code: "INVALID", message: "invalid boolean" };
+  }
+}
+
 export function boolean<O extends BooleanOptions>(
   options?: O,
 ): Validator<Presence<O, boolean>> {
-  const defaultValue = options?.default;
-  const optional = options?.optional;
+  return new BooleanValidator<Presence<O, boolean>>(options);
+}
 
-  const validator: Validator<boolean> = {
-    optional: optional === true,
-    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-    parse(raw): ParseResult<boolean> {
-      if (raw === "true") {
-        return { ok: true, value: true };
-      }
-      if (raw === "false") {
-        return { ok: true, value: false };
-      }
-      return { ok: false, code: "INVALID", message: "invalid boolean" };
-    },
-  };
+export class EnumValidator<
+  T extends string | undefined,
+> implements Validator<T> {
+  readonly optional: boolean;
+  readonly default?: T;
+  private readonly values: readonly string[];
 
-  // Presence<O, boolean> is either `boolean` or `boolean | undefined`,
-  // and Validator<boolean> satisfies both.
-  return validator as Validator<Presence<O, boolean>>;
+  constructor(values: readonly string[], options?: EnumOptions<string>) {
+    const defaultValue = options?.default;
+
+    // Schema bugs fail fast, before any environment is read.
+    if (values.length === 0) {
+      throw new Error("env-validator: enumOf() requires at least one value");
+    }
+    if (defaultValue !== undefined && !values.includes(defaultValue)) {
+      throw new Error(
+        "env-validator: enumOf() default must be one of the allowed values",
+      );
+    }
+
+    this.values = values;
+    this.optional = options?.optional === true;
+    if (defaultValue !== undefined) {
+      // T matches the presence implied by options; factories infer it exactly.
+      this.default = defaultValue as T;
+    }
+  }
+
+  parse(raw: string): ParseResult<T> {
+    if (this.values.includes(raw)) {
+      // Membership in the allowed list proved by includes().
+      return { ok: true, value: raw as T };
+    }
+    return { ok: false, code: "INVALID", message: "invalid value" };
+  }
 }
 
 export function enumOf<
   const V extends readonly string[],
   const O extends EnumOptions<V[number]>,
 >(values: V, options?: O): Validator<Presence<O, V[number]>> {
-  const defaultValue = options?.default;
-  const optional = options?.optional;
-
-  // Schema bugs fail fast, before any environment is read.
-  if (values.length === 0) {
-    throw new Error("env-validator: enumOf() requires at least one value");
-  }
-  if (defaultValue !== undefined && !values.includes(defaultValue)) {
-    throw new Error(
-      "env-validator: enumOf() default must be one of the allowed values",
-    );
-  }
-
-  const validator: Validator<V[number]> = {
-    optional: optional === true,
-    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-    parse(raw): ParseResult<V[number]> {
-      if (values.includes(raw)) {
-        // Membership proved by includes(); V is generic, so TS cannot.
-        return { ok: true, value: raw as V[number] };
-      }
-      return { ok: false, code: "INVALID", message: "invalid value" };
-    },
-  };
-
-  // Presence<O, V[number]> is either the literal union or
-  // union | undefined, and Validator<union> satisfies both.
-  return validator as Validator<Presence<O, V[number]>>;
+  return new EnumValidator<Presence<O, V[number]>>(values, options);
 }
 
 function isValidUrl(value: string): boolean {
@@ -194,32 +236,40 @@ function isValidUrl(value: string): boolean {
 // The WHATWG parser decides validity; the raw input is returned unchanged.
 // Failure messages are static on purpose: Node's Invalid URL exception
 // embeds the input, and raw environment values must never reach output.
+export class UrlValidator<
+  T extends string | undefined,
+> implements Validator<T> {
+  readonly optional: boolean;
+  readonly default?: T;
+
+  constructor(options?: UrlOptions) {
+    const defaultValue = options?.default;
+
+    // A default that violates its own constraints is a schema bug: fail fast,
+    // before any environment is read.
+    if (defaultValue !== undefined && !isValidUrl(defaultValue)) {
+      throw new Error("env-validator: url() default must be a valid URL");
+    }
+
+    this.optional = options?.optional === true;
+    if (defaultValue !== undefined) {
+      // T matches the presence implied by options; factories infer it exactly.
+      this.default = defaultValue as T;
+    }
+  }
+
+  parse(raw: string): ParseResult<T> {
+    if (!isValidUrl(raw)) {
+      return { ok: false, code: "INVALID", message: "invalid URL" };
+    }
+    return { ok: true, value: raw as T };
+  }
+}
+
 export function url<O extends UrlOptions>(
   options?: O,
 ): Validator<Presence<O, string>> {
-  const defaultValue = options?.default;
-  const optional = options?.optional;
-
-  // A default that violates its own constraints is a schema bug: fail fast,
-  // before any environment is read.
-  if (defaultValue !== undefined && !isValidUrl(defaultValue)) {
-    throw new Error("env-validator: url() default must be a valid URL");
-  }
-
-  const validator: Validator<string> = {
-    optional: optional === true,
-    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
-    parse(raw): ParseResult<string> {
-      if (!isValidUrl(raw)) {
-        return { ok: false, code: "INVALID", message: "invalid URL" };
-      }
-      return { ok: true, value: raw };
-    },
-  };
-
-  // Presence<O, string> is either `string` or `string | undefined`,
-  // and Validator<string> satisfies both.
-  return validator as Validator<Presence<O, string>>;
+  return new UrlValidator<Presence<O, string>>(options);
 }
 
 export class EnvError extends Error {
@@ -277,4 +327,12 @@ export function env<S extends Schema>(
     throw new EnvError(issues);
   }
   return config as InferSchema<S>;
+}
+
+export class Env<S extends Schema> {
+  constructor(readonly schema: S) {}
+
+  validate(source: EnvSource): InferSchema<S> {
+    return env(this.schema, source);
+  }
 }
