@@ -58,6 +58,12 @@ export type EnumOptions<V extends string> = {
   optional?: true;
 };
 
+/** Options accepted by url(). */
+export type UrlOptions = {
+  default?: string;
+  optional?: true;
+};
+
 /** A schema maps environment variable names to validators. */
 export type Schema = Record<string, Validator<unknown>>;
 

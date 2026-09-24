@@ -6,6 +6,7 @@ import type {
   ParseResult,
   Presence,
   StringOptions,
+  UrlOptions,
   Validator,
 } from "./types";
 
@@ -175,4 +176,44 @@ export function enumOf<
   // Presence<O, V[number]> is either the literal union or
   // union | undefined, and Validator<union> satisfies both.
   return validator as Validator<Presence<O, V[number]>>;
+}
+
+function isValidUrl(value: string): boolean {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The WHATWG parser decides validity; the raw input is returned unchanged.
+// Failure messages are static on purpose: Node's Invalid URL exception
+// embeds the input, and raw environment values must never reach output.
+export function url<O extends UrlOptions>(
+  options?: O,
+): Validator<Presence<O, string>> {
+  const defaultValue = options?.default;
+  const optional = options?.optional;
+
+  // A default that violates its own constraints is a schema bug: fail fast,
+  // before any environment is read.
+  if (defaultValue !== undefined && !isValidUrl(defaultValue)) {
+    throw new Error("env-validator: url() default must be a valid URL");
+  }
+
+  const validator: Validator<string> = {
+    optional: optional === true,
+    ...(defaultValue !== undefined ? { default: defaultValue } : {}),
+    parse(raw): ParseResult<string> {
+      if (!isValidUrl(raw)) {
+        return { ok: false, code: "INVALID", message: "invalid URL" };
+      }
+      return { ok: true, value: raw };
+    },
+  };
+
+  // Presence<O, string> is either `string` or `string | undefined`,
+  // and Validator<string> satisfies both.
+  return validator as Validator<Presence<O, string>>;
 }
