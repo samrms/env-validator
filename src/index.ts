@@ -2,9 +2,13 @@ import type {
   BooleanOptions,
   EnumOptions,
   EnvErrorCode,
+  EnvIssue,
+  EnvSource,
+  InferSchema,
   NumberOptions,
   ParseResult,
   Presence,
+  Schema,
   StringOptions,
   UrlOptions,
   Validator,
@@ -216,4 +220,61 @@ export function url<O extends UrlOptions>(
   // Presence<O, string> is either `string` or `string | undefined`,
   // and Validator<string> satisfies both.
   return validator as Validator<Presence<O, string>>;
+}
+
+export class EnvError extends Error {
+  readonly issues: EnvIssue[];
+
+  constructor(issues: EnvIssue[]) {
+    super(
+      `env-validator: invalid environment: ${issues
+        .map((issue) => `${issue.key}: ${issue.message}`)
+        .join("; ")}`,
+    );
+    this.name = "EnvError";
+    this.issues = issues;
+  }
+}
+
+function resolve(
+  schema: Schema,
+  source: EnvSource,
+): { config: Record<string, unknown>; issues: EnvIssue[] } {
+  const config: Record<string, unknown> = {};
+  const issues: EnvIssue[] = [];
+
+  for (const [key, validator] of Object.entries(schema)) {
+    const raw = source[key];
+    if (raw === undefined) {
+      // Missing: a default fills the gap, optional stays undefined,
+      // otherwise the variable is reported.
+      if (validator.default !== undefined) {
+        config[key] = validator.default;
+      } else if (!validator.optional) {
+        issues.push({ key, code: "MISSING", message: "is required" });
+      }
+    } else {
+      // Present — including a present empty string, which is parsed, never
+      // treated as missing.
+      const result = validator.parse(raw);
+      if (result.ok) {
+        config[key] = result.value;
+      } else {
+        issues.push({ key, code: result.code, message: result.message });
+      }
+    }
+  }
+
+  return { config, issues };
+}
+
+export function env<S extends Schema>(
+  schema: S,
+  source: EnvSource,
+): InferSchema<S> {
+  const { config, issues } = resolve(schema, source);
+  if (issues.length > 0) {
+    throw new EnvError(issues);
+  }
+  return config as InferSchema<S>;
 }
