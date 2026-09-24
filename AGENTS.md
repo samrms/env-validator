@@ -23,14 +23,12 @@ After every meaningful change run, in order:
 ## Architecture
 
 ```
-src/types.ts      Validator<T>, schema + inference types, EnvSource
-src/validators.ts string(), number(), boolean(), enumOf(), url(), shared resolve()
-src/env.ts        env(): schema × source -> typed config, error aggregation
-src/errors.ts     EnvError, EnvIssue, EnvErrorCode, message formatting
-src/index.ts      public exports only
+src/index.ts   the public API is DEFINED here (every exported function and
+               class), plus private module helpers
+src/types.ts   all type definitions (public and internal)
 ```
 
-Public API (the only things exported from `src/index.ts`):
+Public API (the target exports of `src/index.ts`):
 `env`, `string`, `number`, `boolean`, `enumOf`, `url`, `EnvError`, `EnvIssue`,
 `EnvErrorCode`, `EnvSource`.
 
@@ -46,6 +44,9 @@ Public API (the only things exported from `src/index.ts`):
 - Do not weaken or delete tests. Every behavior change needs a test.
 - Do not add speculative abstractions: no factories, registries, pipelines,
   strategies, managers, or plugin systems.
+- No barrel files: never add a module that exists only to re-export. The
+  public API must be defined directly in `src/index.ts`, never as
+  `export ... from` another module.
 - Runtime dependencies must stay **0**. Justify any new dev dependency.
 - Security: never print or embed raw environment values in errors or messages;
   never mutate the source or `process.env`; no I/O, no network, no global

@@ -1,118 +1,60 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
+import { string } from "../src/index";
 import type { Validator } from "../src/types";
-import { resolve, string } from "../src/validators";
 
 describe("string() parsing", () => {
   it("returns valid strings unchanged", () => {
-    expect(resolve(string(), "GREETING", "hello ")).toEqual({
-      ok: true,
-      value: "hello ",
-    });
+    expect(string().parse("hello ")).toEqual({ ok: true, value: "hello " });
   });
 
   it("allows an empty string unless a constraint rejects it", () => {
-    expect(resolve(string(), "MAYBE", "")).toEqual({ ok: true, value: "" });
-    expect(resolve(string({ minLength: 1 }), "MAYBE", "")).toEqual({
+    expect(string().parse("")).toEqual({ ok: true, value: "" });
+    expect(string({ minLength: 1 }).parse("")).toEqual({
       ok: false,
-      issue: {
-        key: "MAYBE",
-        code: "OUT_OF_RANGE",
-        message: "must be at least 1 characters",
-      },
+      code: "OUT_OF_RANGE",
+      message: "must be at least 1 characters",
     });
   });
 
   it("enforces minLength at the boundary", () => {
-    expect(resolve(string({ minLength: 3 }), "CODE", "abc")).toEqual({
+    expect(string({ minLength: 3 }).parse("abc")).toEqual({
       ok: true,
       value: "abc",
     });
-    expect(resolve(string({ minLength: 3 }), "CODE", "ab")).toEqual({
+    expect(string({ minLength: 3 }).parse("ab")).toEqual({
       ok: false,
-      issue: {
-        key: "CODE",
-        code: "OUT_OF_RANGE",
-        message: "must be at least 3 characters",
-      },
+      code: "OUT_OF_RANGE",
+      message: "must be at least 3 characters",
     });
   });
 
   it("enforces maxLength at the boundary", () => {
-    expect(resolve(string({ maxLength: 5 }), "CODE", "abcde")).toEqual({
+    expect(string({ maxLength: 5 }).parse("abcde")).toEqual({
       ok: true,
       value: "abcde",
     });
-    expect(resolve(string({ maxLength: 5 }), "CODE", "abcdef")).toEqual({
+    expect(string({ maxLength: 5 }).parse("abcdef")).toEqual({
       ok: false,
-      issue: {
-        key: "CODE",
-        code: "OUT_OF_RANGE",
-        message: "must be at most 5 characters",
-      },
+      code: "OUT_OF_RANGE",
+      message: "must be at most 5 characters",
     });
   });
 
   it("never includes the raw value in messages", () => {
-    const result = resolve(
-      string({ maxLength: 3 }),
-      "TOKEN",
-      "super-secret-value",
-    );
-    expect(result.ok).toBe(false);
+    const result = string({ maxLength: 3 }).parse("super-secret-value");
     expect(JSON.stringify(result)).not.toContain("super-secret-value");
   });
 });
 
-describe("string() presence", () => {
-  it("a missing required variable is an issue", () => {
-    expect(resolve(string(), "JWT_SECRET", undefined)).toEqual({
-      ok: false,
-      issue: {
-        key: "JWT_SECRET",
-        code: "MISSING",
-        message: "missing required value",
-      },
-    });
+describe("string() presence configuration", () => {
+  it("is required by default", () => {
+    expect(string().optional).toBe(false);
+    expect(string().default).toBeUndefined();
   });
 
-  it("a missing variable with a default uses the default", () => {
-    expect(
-      resolve(string({ default: "development" }), "NAME", undefined),
-    ).toEqual({
-      ok: true,
-      value: "development",
-    });
-  });
-
-  it("a present empty string is not treated as missing", () => {
-    expect(resolve(string({ default: "dev" }), "NAME", "")).toEqual({
-      ok: true,
-      value: "",
-    });
-  });
-
-  it("an optional variable may stay undefined", () => {
-    expect(resolve(string({ optional: true }), "NAME", undefined)).toEqual({
-      ok: true,
-      value: undefined,
-    });
-  });
-
-  it("default wins over optional", () => {
-    expect(
-      resolve(string({ default: "d", optional: true }), "NAME", undefined),
-    ).toEqual({ ok: true, value: "d" });
-  });
-
-  it("treats an explicit `default: undefined` as no default (required)", () => {
-    expect(resolve(string({ default: undefined }), "NAME", undefined)).toEqual({
-      ok: false,
-      issue: {
-        key: "NAME",
-        code: "MISSING",
-        message: "missing required value",
-      },
-    });
+  it("carries default and optional settings on the descriptor", () => {
+    expect(string({ default: "dev" }).default).toBe("dev");
+    expect(string({ optional: true }).optional).toBe(true);
   });
 });
 

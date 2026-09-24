@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
-import type { EnvErrorCode, EnvIssue } from "../src/errors";
 import type {
+  EnvErrorCode,
+  EnvIssue,
   InferSchema,
   InferValidator,
   Presence,

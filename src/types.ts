@@ -1,7 +1,18 @@
-import type { EnvErrorCode } from "./errors";
-
 /** Explicit source of environment values, e.g. `process.env`. Never mutated. */
 export type EnvSource = Record<string, string | undefined>;
+
+/** Category of a validation failure. Kept small on purpose. */
+export type EnvErrorCode = "MISSING" | "INVALID" | "OUT_OF_RANGE";
+
+/**
+ * One validation failure for one variable.
+ * `message` never contains the raw environment value.
+ */
+export type EnvIssue = {
+  key: string;
+  code: EnvErrorCode;
+  message: string;
+};
 
 /** Result of parsing a raw value that is present in the source. */
 export type ParseResult<T> =
@@ -9,7 +20,7 @@ export type ParseResult<T> =
 
 /**
  * A validator. `parse` is only ever called with a present raw value
- * (never `undefined`); presence handling happens in `resolve`.
+ * (never `undefined`); presence handling happens in env().
  */
 export interface Validator<T> {
   parse(raw: string): ParseResult<T>;
@@ -18,6 +29,14 @@ export interface Validator<T> {
   /** True when the variable may stay undefined. */
   readonly optional: boolean;
 }
+
+/** Options accepted by string(). */
+export type StringOptions = {
+  minLength?: number;
+  maxLength?: number;
+  default?: string;
+  optional?: true;
+};
 
 /** A schema maps environment variable names to validators. */
 export type Schema = Record<string, Validator<unknown>>;
